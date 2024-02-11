@@ -1,0 +1,2 @@
+# EarthquakeMilkShake
+Earthquake statistics
