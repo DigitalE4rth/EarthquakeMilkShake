@@ -1,21 +1,25 @@
 ﻿using EarthquakeMilkShake.Facilities;
 
-Emsc emsc = new Emsc();
-Iris iris = new Iris();
-Isc  isc  = new Isc();
-Usgs usgs = new Usgs();
-IrisIndonesia irisIndonesia = new IrisIndonesia();
+Emsc             emsc             = new Emsc();
+IrisIeb          irisIeb          = new IrisIeb();
+IrisWilber       irisWilber       = new IrisWilber();
+Isc              isc              = new Isc();
+Usgs             usgs             = new Usgs();
+IrisIebIndonesia irisIebIndonesia = new IrisIebIndonesia();
+List<IFacility>  facilities       = new List<IFacility> { emsc, irisIeb, irisWilber, isc, usgs };
 
-FacilityService facilityService = new FacilityService(emsc, iris, isc, usgs);
-List<IFacility> facilities = new List<IFacility> { emsc, iris, isc, usgs };
+void ClearWorkFolder()                 => facilities.ForEach(f => f.ClearWorkFolder());
+async Task DownloadAllData()           => await Task.WhenAll(emsc.Download(), irisIeb.Download(), irisWilber.Download(), isc.Download(), usgs.Download());
+void MergeData()                       => facilities.ForEach(f => f.MergeData());
+void ParseAndSave()                    => facilities.ForEach(f => f.ParseAndSave());
+void FilterAndSave()                   => facilities.ForEach(f => f.FilterAndSave());
+void CountParsedAndSave()              => facilities.ForEach(f => f.CountParsedAndSave());
+void CountFilteredAndSave()            => facilities.ForEach(f => f.CountFilteredAndSave());
+void CountByMagnitudeFilteredAndSave() => facilities.ForEach(f => f.CountByMagnitudeFilteredAndSave());
+void CountByMagnitudeParsedAndSave()   => facilities.ForEach(f => f.CountByMagnitudeParsedAndSave());
 
-void DeleteWorkFiles() => facilities.ForEach(f => f.DeleteWorkFiles());
-async Task DownloadAllData() => await Task.WhenAll(emsc.Download(), iris.Download(), isc.Download(), usgs.Download());
-void MergeData() => facilities.ForEach(f => f.MergeData());
-void ParseAndSave() => facilities.ForEach(f => f.ParseAndSave());
-void FilterAndSave() => facilities.ForEach(f => f.FilterAndSave());
-void CountParsedAndSave() => facilities.ForEach(f => f.CountParsedAndSave());
-void CountFilteredAndSave() => facilities.ForEach(f => f.CountFilteredAndSave());
+// Preparation step: optionally customize the magnitude and years parameters in this class:
+// FacilitySettings
 
 // Step 1: Delete ALL files
 // ClearWorkFolder();
@@ -33,19 +37,16 @@ void CountFilteredAndSave() => facilities.ForEach(f => f.CountFilteredAndSave())
 // FilterAndSave();
 
 // Step 3.3: Count earthquakes by years
-// CountParsedAndSave();
-// CountFilteredAndSave();
-
-// Step 3.4: Combine counted earthquakes into a single file
-// facilityService.DeleteAll();
-// facilityService.CountCombinedParsedAndSave();
-// facilityService.CountCombinedFilteredAndSave();
+// CountByMagnitudeFilteredAndSave();
+// CountByMagnitudeParsedAndSave();
 
 // Additional step: Calculate Indonesia data
 // await irisIndonesia.CalculateIndonesiaData();
+// irisIndonesia.CountFilteredAndSave(new DateTime(2015, 06, 1), new DateTime(2016, 06, 30));
+// irisIndonesia.CountByMagnitudeFilteredAndSave();
+// irisIndonesia.CountByMagnitudeParsedAndSave();
 
 // Additional step: Calculate earthquakes count by location from USGS facility
-// usgs.DeleteLocationCount();
-// usgs.SaveCountByLocationAll();
-// usgs.SaveCountByLocationPartial();
+// usgs.SaveCountByLocation(1970, 2024, "EqByLocation.csv");
+
 return 0;

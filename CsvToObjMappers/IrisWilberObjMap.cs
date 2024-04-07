@@ -3,9 +3,9 @@ using EarthquakeMilkShake.DataRaw;
 
 namespace EarthquakeMilkShake.CsvToObjMappers;
 
-public sealed class EmscObjMap : ClassMap<EarthquakeRawInfo>
+public sealed class IrisWilberObjMap : ClassMap<EarthquakeRawInfo>
 {
-    public EmscObjMap()
+    public IrisWilberObjMap()
     {
         Map(m => m.Id).Name("#EventID");
         Map(m => m.Date).Name("Time");

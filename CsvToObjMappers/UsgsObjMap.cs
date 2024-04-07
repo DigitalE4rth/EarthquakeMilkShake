@@ -11,6 +11,8 @@ public sealed class UsgsObjMap : ClassMap<EarthquakeRawInfo>
         Map(m => m.Date).Name("time");
         Map(m => m.Place).Name("place");
         Map(m => m.Magnitude).Name("mag");
+        Map(m => m.Latitude).Name("latitude");
+        Map(m => m.Longitude).Name("longitude");
         Map(m => m.Depth).Name("depth");
         Map(m => m.Type).Name("type");
         Map(m => m.Status).Name("status");

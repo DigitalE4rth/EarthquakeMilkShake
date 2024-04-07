@@ -5,14 +5,14 @@ using System.Diagnostics;
 
 namespace EarthquakeMilkShake.Facilities;
 
-// https://www.seismicportal.eu/fdsn-wsevent.html
-public class Emsc : FacilityBase<EmscObjMap, EmscConverter>
+// http://ds.iris.edu/ds/nodes/dmc/tools/#data_types=events
+public class IrisWilber : FacilityBase<IrisWilberObjMap, IrisWilberConverter>
 {
-    public Emsc()
+    public IrisWilber()
     {
     }
 
-    public Emsc(FacilitySettings settings) : base(settings)
+    public IrisWilber(FacilitySettings settings) : base(settings)
     {
     }
 
@@ -37,12 +37,16 @@ public class Emsc : FacilityBase<EmscObjMap, EmscConverter>
     {
         var result = new List<string>
         {
-            $"https://www.seismicportal.eu/fdsnws/event/1/query?limit=20000&start={yearMin}-01-01&end={yearMin}-01-01&format=text&minmag={magnitudeMin.ToString(Settings.NumberFormatInfo)}&maxmag={magnitudeMax.ToString(Settings.NumberFormatInfo)}"
+            $"http://service.iris.edu/fdsnws/event/1/query?starttime={yearMin}-01-01&endtime={yearMin}-01-01T23%3A59%3A59.999999&minmagnitude={magnitudeMin.ToString(Settings.NumberFormatInfo)}&maxmagnitude={magnitudeMax.ToString(Settings.NumberFormatInfo)}&mindepth=0&maxdepth=6371&limit=10000&output=text"
         };
 
         for (var i = yearMin; i <= yearMax; i++)
         {
-            result.Add($"https://www.seismicportal.eu/fdsnws/event/1/query?limit=20000&start={i}-01-02&end={i+1}-01-01&format=text&minmag={magnitudeMin.ToString(Settings.NumberFormatInfo)}&maxmag={magnitudeMax.ToString(Settings.NumberFormatInfo)}");
+            result.AddRange( new []{
+                $"http://service.iris.edu/fdsnws/event/1/query?starttime={i}-01-02&endtime={i}-04-01T23%3A59%3A59.999999&minmagnitude={magnitudeMin.ToString(Settings.NumberFormatInfo)}&maxmagnitude={magnitudeMax.ToString(Settings.NumberFormatInfo)}&mindepth=0&maxdepth=6371&limit=10000&output=text",
+                $"http://service.iris.edu/fdsnws/event/1/query?starttime={i}-04-02&endtime={i}-08-01T23%3A59%3A59.999999&minmagnitude={magnitudeMin.ToString(Settings.NumberFormatInfo)}&maxmagnitude={magnitudeMax.ToString(Settings.NumberFormatInfo)}&mindepth=0&maxdepth=6371&limit=10000&output=text",
+                $"http://service.iris.edu/fdsnws/event/1/query?starttime={i}-08-02&endtime={i+1}-01-01T23%3A59%3A59.999999&minmagnitude={magnitudeMin.ToString(Settings.NumberFormatInfo)}&maxmagnitude={magnitudeMax.ToString(Settings.NumberFormatInfo)}&mindepth=0&maxdepth=6371&limit=10000&output=text"
+            });
         }
 
         return result;
@@ -59,11 +63,11 @@ public class Emsc : FacilityBase<EmscObjMap, EmscConverter>
 
         var notEmptyFile = files.FirstOrDefault(f => new FileInfo(f).Length != 0);
         if (notEmptyFile is null) return;
-        
+
         var csvHeader = File.ReadLines(notEmptyFile).FirstOrDefault();
         if (csvHeader != null)
         {
-            csvHeader = csvHeader.Replace("|", ",");
+            csvHeader = csvHeader.Replace("|", ",").Replace(" ", "");
             using var streamWriter = File.AppendText(mergedDataFile);
             streamWriter.WriteLine(csvHeader);
         }
@@ -77,9 +81,7 @@ public class Emsc : FacilityBase<EmscObjMap, EmscConverter>
 
     public override void FilterAndSave()
     {
-        var data = GetParsed()
-            .Where(i => i.Contributor.Equals("EMSC"))
-            .ToList();
+        var data = GetParsed().Distinct().ToList();
 
         DeleteResult();
         Save(data, Settings.FilteredFilePath);

@@ -2,6 +2,7 @@
 
 public interface IFacility
 {
+    public void ClearWorkFolder();
     public void DeleteWorkFiles();
     public Task Download();
     public void MergeData();
@@ -9,4 +10,6 @@ public interface IFacility
     public void FilterAndSave();
     public void CountParsedAndSave();
     public void CountFilteredAndSave();
+    public void CountByMagnitudeFilteredAndSave();
+    public void CountByMagnitudeParsedAndSave();
 }

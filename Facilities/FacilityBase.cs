@@ -11,40 +11,20 @@ namespace EarthquakeMilkShake.Facilities;
 
 public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() where TC : IEarthquakeInfoObjConverter, new()
 {
-    protected string Location { get; set; }
-
-    protected string Delimiter = ",";
-    protected string Subfolder = "Data";
-    protected (int Min, int Max) Years = (1970, 2023);
-    protected (int Min, int Max) Magnitude = (4, 10);
-
-    protected string MergedFileName { get; set; } = "Merged.csv";
-    protected string MergedFilePath => Path.Combine(Location, MergedFileName);
-
-    protected string ParsedFileName { get; set; } = "Parsed.csv";
-    protected string ParsedFilePath => Path.Combine(Location, ParsedFileName);
-
-    protected string FilteredFileName { get; set; } = "Filtered.csv";
-    protected string FilteredFilePath => Path.Combine(Location, FilteredFileName);
-
-    protected string CountParsedFileName  { get; set; } = "CountedParsed.csv";
-    protected string CountParsedFilePath => Path.Combine(Location, CountParsedFileName);
-
-    protected string CountResultFileName  { get; set; } = "CountedFiltered.csv";
-    protected string CountResultFilePath => Path.Combine(Location, CountResultFileName);
+    public readonly FacilitySettings Settings;
 
     protected FacilityBase()
     {
-        Location = Path.Combine(AppContext.BaseDirectory, Subfolder, GetType().Name);
-        Directory.CreateDirectory(Location);
+        Settings = new FacilitySettings
+        {
+            Location = Path.Combine(AppContext.BaseDirectory, "Data", GetType().Name)
+        };
     }
 
-    protected FacilityBase(string facilityName)
+    protected FacilityBase(FacilitySettings settings)
     {
-        Location = Path.Combine(AppContext.BaseDirectory, Subfolder, facilityName);
-        Directory.CreateDirectory(Location);
+        Settings = settings;
     }
-
 
 
     #region Download
@@ -52,16 +32,19 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
     {
         var links = GetDownloadLinks();
         using var downloadManager = new DownloadManager();
-        await downloadManager.Download(links, Location);
+        await downloadManager.Download(new DownloadSettings
+        {
+            UrlList = links,
+            BaseDirectory = Settings.Location
+        });
     }
-    public virtual async Task Download(TimeSpan delay)
+    public virtual async Task Download(DownloadSettings settings)
     {
-        var links = GetDownloadLinks();
         using var downloadManager = new DownloadManager();
-        await downloadManager.Download(links, Location, delay);
+        await downloadManager.Download(settings);
     }
-    public virtual List<string> GetDownloadLinks() => GetDownloadLinks(Years.Min, Years.Max, Magnitude.Min, Magnitude.Max);
-    public virtual List<string> GetDownloadLinks(int yearMin, int yearMax, int magnitudeMin, int magnitudeMax) => new(0);
+    public virtual List<string> GetDownloadLinks() => GetDownloadLinks(Settings.Years.Min, Settings.Years.Max, Settings.Magnitude.Min, Settings.Magnitude.Max);
+    public virtual List<string> GetDownloadLinks(int yearMin, int yearMax, double magnitudeMin, double magnitudeMax) => new(0);
     #endregion
 
 
@@ -69,10 +52,10 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
     #region Create
     public virtual void MergeData()
     {
-        var mergedDataFile = MergedFilePath;
+        var mergedDataFile = Settings.MergedFilePath;
         File.Delete(mergedDataFile);
 
-        var files = Directory.GetFiles(Location)
+        var files = Directory.GetFiles(Settings.Location)
             .Except(GetWorkFilePaths())
             .ToList();
 
@@ -92,13 +75,13 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
     public void ParseAndSave()
     {
         var data = GetRaw()
-            .Distinct()
+            .DistinctBy(i => new {i.Latitude, i.Longitude, i.Date, i.Magnitude, i.Depth})
             .ToList();
 
         var result = ConvertToObj<TC>(data);
 
-        File.Delete(ParsedFilePath);
-        Save(result, ParsedFilePath);
+        File.Delete(Settings.ParsedFilePath);
+        Save(result, Settings.ParsedFilePath);
     }
     public virtual void FilterAndSave() { }
 
@@ -110,24 +93,57 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
     }
     public void CountFilteredAndSave()
     {
-        var data = GetResult();
+        var data = GetFiltered();
         var count = CountEarthQuakesByYears(data);
         SaveFiltered(count);
     }
+    public void CountByMagnitudeFilteredAndSave()
+    {
+        var data = GetFiltered();
+        var count = CountEqByMagnitude(data);
+        Save(count, Settings.CountByMagFilteredFilePath);
+    }
+    public void CountByMagnitudeParsedAndSave()
+    {
+        var data = GetParsed();
+        var count = CountEqByMagnitude(data);
+        Save(count, Settings.CountByMagParsedFilePath);
+    }
 
-    protected void SaveParsed(List<EqByYearsCount> data) => Save(data, CountParsedFilePath);
-    protected void SaveFiltered(List<EqByYearsCount> data) => Save(data, CountResultFilePath);
+    public void CountByLocationAndSave() => SaveCountByLocation(Settings.Years.Min, Settings.Years.Max, Settings.LocationCountAllFileName);
+    public void CountByLocationPartialAndSave() => SaveCountByLocation(2000, 2024, Settings.LocationCountPartialFileName);
+
+    public void SaveCountByLocation(int minYear, int maxYear, string fileName)
+    {
+        var data = GetEqByLocation(minYear, maxYear);
+        Save(data, Path.Combine(Settings.Location, fileName));
+    }
+
+    protected void SaveParsed(List<EqByYearsCount> data) => Save(data, Settings.CountParsedFilePath);
+    protected void SaveFiltered(List<EqByYearsCount> data) => Save(data, Settings.CountResultFilePath);
 
     protected void Save(List<EqByYearsCount> data, string filePath)
     {
         using var writer = new StreamWriter(filePath);
-        using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = Delimiter });
+        using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = Settings.Delimiter });
         csv.WriteRecords(data);
     }
     protected void Save(List<EarthquakeInfo> data, string filePath)
     {
         using var writer = new StreamWriter(filePath);
-        using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = Delimiter });
+        using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = Settings.Delimiter });
+        csv.WriteRecords(data);
+    }
+    protected void Save(List<EqMagnitudesCount> data, string filePath)
+    {
+        using var writer = new StreamWriter(filePath);
+        using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = Settings.Delimiter });
+        csv.WriteRecords(data);
+    }
+    protected void Save(List<EqLocationCount> data, string filePath)
+    {
+        using var writer = new StreamWriter(filePath);
+        using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = Settings.Delimiter });
         csv.WriteRecords(data);
     }
     #endregion
@@ -135,24 +151,76 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
 
 
     #region Read
-    public virtual List<EarthquakeRawInfo> GetRaw() => Get<T, EarthquakeRawInfo>(MergedFilePath);
-    public virtual List<EarthquakeInfo> GetParsed() => Get<EarthquakeInfo>(ParsedFilePath);
-    public virtual List<EarthquakeInfo> GetResult() => Get<EarthquakeInfo>(FilteredFilePath);
+    public virtual List<EarthquakeRawInfo> GetRaw() => Get<T, EarthquakeRawInfo>(Settings.MergedFilePath);
+    public virtual List<EarthquakeInfo> GetParsed() => Get<EarthquakeInfo>(Settings.ParsedFilePath);
+    public virtual List<EarthquakeInfo> GetFiltered() => Get<EarthquakeInfo>(Settings.FilteredFilePath);
 
-    public List<EqByYearsCount> GetCountParsed() => Get<EarthQuakesCountMap, EqByYearsCount>(CountParsedFilePath);
-    public List<EqByYearsCount> GetCountResult() => Get<EarthQuakesCountMap, EqByYearsCount>(CountResultFilePath);
+    public List<EqByYearsCount> GetCountParsed() => Get<EarthQuakesCountMap, EqByYearsCount>(Settings.CountParsedFilePath);
+    public List<EqByYearsCount> GetCountResult() => Get<EarthQuakesCountMap, EqByYearsCount>(Settings.CountResultFilePath);
     protected List<EqByYearsCount> CountEarthQuakesByYears(List<EarthquakeInfo> data)
     {
-        return data
-            .GroupBy(info => info.Date.Year)
-            .Select(i => new EqByYearsCount(i.Key, i.Count()))
-            .OrderBy(i => i.Year)
+        return data.GroupBy(i => i.Date.Year)
+                   .Select(i => new EqByYearsCount(i.Key, i.Count()))
+                   .OrderBy(i => i.Year)
+                   .ToList();
+    }
+    public List<EqMagnitudesCount> CountEqByMagnitude(List<EarthquakeInfo> data)
+    {
+        var resultDict = new Dictionary<int, EqMagnitudesCount>();
+
+        for (var i = Settings.Years.Min; i <= Settings.Years.Max; i++)
+        {
+            resultDict.Add(i, new EqMagnitudesCount { Year = i });
+        }
+
+        data.ForEach(i =>
+        {
+            if (i.Date.Year < Settings.Years.Min || i.Date.Year > Settings.Years.Max) return;
+            
+            switch (i.Magnitude)
+            {
+                case >= 1 and < 2:  resultDict[i.Date.Year].One++;   return;
+                case >= 2 and < 3:  resultDict[i.Date.Year].Two++;   return;
+                case >= 3 and < 4:  resultDict[i.Date.Year].Three++; return;
+                case >= 4 and < 5:  resultDict[i.Date.Year].Four++;  return;
+                case >= 5 and < 6:  resultDict[i.Date.Year].Five++;  return;
+                case >= 6 and < 7:  resultDict[i.Date.Year].Six++;   return;
+                case >= 7 and < 8:  resultDict[i.Date.Year].Seven++; return;
+                case >= 8 and < 9:  resultDict[i.Date.Year].Eight++; return;
+                case >= 9 and < 10: resultDict[i.Date.Year].Nine++;  return;
+                case >= 10:         resultDict[i.Date.Year].Ten++;
+                    break;
+            }
+        });
+
+        return resultDict.Values.ToList();
+    }
+
+    public List<EqLocationCount> GetEqByLocation(int minYear, int maxYear)
+    {
+        return GetFiltered()
+            .Where(i => i.Date.Year >= minYear && i.Date.Year <= maxYear)
+            .GroupBy(i => AdjustLocationName(i.Place))
+            .ToDictionary(i => i.Key, i => i.ToList())
+            .Select(i => new EqLocationCount(i.Key, i.Value.Count))
+            .OrderByDescending(o => o.Count)
             .ToList();
     }
 
     protected virtual List<string> GetWorkFilePaths()
     {
-        return new List<string> { MergedFilePath, ParsedFilePath, FilteredFilePath, CountParsedFilePath, CountResultFilePath};
+        return new List<string>
+        {
+            Settings.MergedFilePath, 
+            Settings.ParsedFilePath, 
+            Settings.FilteredFilePath, 
+            Settings.CountParsedFilePath, 
+            Settings.CountResultFilePath, 
+            Settings.CountByMagFilteredFilePath,
+            Settings.CountByMagParsedFilePath,
+            Settings.LocationCountAllFilePath,
+            Settings.LocationCountPartialFilePath
+        };
     }
 
     protected List<TR> Get<TM, TR>(string filePath) where TM : ClassMap where TR : class
@@ -160,7 +228,7 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
         using var reader = new StreamReader(filePath);
         using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture) 
         {
-            Delimiter = Delimiter,
+            Delimiter = Settings.Delimiter,
             MissingFieldFound = null,
             BadDataFound = null
         });
@@ -173,12 +241,12 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
         using var reader = new StreamReader(filePath);
         using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
         {
-            Delimiter = Delimiter,
+            Delimiter = Settings.Delimiter,
             MissingFieldFound = null,
             BadDataFound = null
         });
 
-        return csv.GetRecords<TR>().ToList();
+        return csv.GetRecords<TR>().ToList();   
     }
     #endregion
 
@@ -186,6 +254,11 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
 
     #region Update
     protected List<EarthquakeInfo> ConvertToObj<TR>(List<EarthquakeRawInfo> data) where TR : IEarthquakeInfoObjConverter, new() => new TR().ConvertToObj(data);
+
+    protected virtual string AdjustLocationName(string location)
+    {
+        return location;
+    }
     #endregion
 
 
@@ -193,7 +266,12 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
     #region Delete
     public void ClearWorkFolder()
     {
-        var di = new DirectoryInfo(Location);
+        var di = new DirectoryInfo(Settings.Location);
+        if (!di.Exists)
+        {
+            Directory.CreateDirectory(Settings.Location);
+            return;
+        }
 
         foreach (var file in di.GetFiles())
         {
@@ -205,11 +283,16 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
             dir.Delete(true);
         }
     }
-    public void DeleteMerge() => File.Delete(MergedFilePath);
-    public void DeleteParsed() => File.Delete(ParsedFilePath);
-    public void DeleteResult() => File.Delete(FilteredFilePath);
-    public void DeleteCountResult() => File.Delete(CountResultFilePath);
-    public void DeleteCountMerge() => File.Delete(CountParsedFilePath);
+    public void DeleteMerge() => File.Delete(Settings.MergedFilePath);
+    public void DeleteParsed() => File.Delete(Settings.ParsedFilePath);
+    public void DeleteResult() => File.Delete(Settings.FilteredFilePath);
+    public void DeleteCountResult() => File.Delete(Settings.CountResultFilePath);
+    public void DeleteCountMerge() => File.Delete(Settings.CountParsedFilePath);
+    public void DeleteCountByMagFiltered() => File.Delete(Settings.CountByMagFilteredFilePath);
+    public void DeleteCountByMagParsed() => File.Delete(Settings.CountByMagParsedFilePath);
+    public void DeleteLocationCountAll() => File.Delete(Settings.LocationCountAllFilePath);
+    public void DeleteLocationCountPartial() => File.Delete(Settings.LocationCountPartialFilePath);
+
     public virtual void DeleteWorkFiles()
     {
         DeleteMerge();
@@ -217,6 +300,10 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
         DeleteResult();
         DeleteCountResult();
         DeleteCountMerge();
+        DeleteCountByMagFiltered();
+        DeleteCountByMagParsed();
+        DeleteLocationCountAll();
+        DeleteLocationCountPartial();
     }
     #endregion
 }

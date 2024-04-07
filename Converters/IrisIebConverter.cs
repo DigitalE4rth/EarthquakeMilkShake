@@ -3,7 +3,7 @@ using EarthquakeMilkShake.Utils;
 
 namespace EarthquakeMilkShake.Converters;
 
-public class IrisConverter : IEarthquakeInfoObjConverter
+public class IrisIebConverter : IEarthquakeInfoObjConverter
 {
     private readonly MiscParsers _parsers = new();
 
@@ -13,6 +13,8 @@ public class IrisConverter : IEarthquakeInfoObjConverter
         {
             Date = FormatDateString(raw.Date),
             Magnitude = _parsers.ParseDouble(raw.Magnitude),
+            Latitude = _parsers.ParseDouble(raw.Latitude),
+            Longitude = _parsers.ParseDouble(raw.Longitude),
             Place = raw.Place,
             Depth = _parsers.ParseDouble(raw.Depth),
         }).ToList();

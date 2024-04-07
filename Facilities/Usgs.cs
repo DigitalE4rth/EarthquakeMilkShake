@@ -1,33 +1,49 @@
-﻿using System.Globalization;
-using CsvHelper;
-using CsvHelper.Configuration;
-using EarthquakeMilkShake.Converters;
+﻿using EarthquakeMilkShake.Converters;
 using EarthquakeMilkShake.CsvToObjMappers;
-using EarthquakeMilkShake.EarthquakeCount;
+using EarthquakeMilkShake.Utils;
+using System.Diagnostics;
 
 namespace EarthquakeMilkShake.Facilities;
 
 public class Usgs : FacilityBase<UsgsObjMap, UsgsConverter>
 {
-    protected string LocationCountAllFileName { get; set; } = "CountByLocationAll.csv";
-    protected string LocationCountAllFilePath => Path.Combine(Location, LocationCountAllFileName);
+    public Usgs()
+    {
+    }
 
-    protected string LocationCountPartialFileName { get; set; } = "CountByLocationPartial.csv";
-    protected string LocationCountPartialFilePath => Path.Combine(Location, LocationCountPartialFileName);
+    public Usgs(FacilitySettings settings) : base(settings)
+    {
+    }
 
+    public override async Task Download()
+    {
+        using var downloadManager = new DownloadManager();
 
+        for (var i = Settings.Magnitude.Min; i < Settings.Magnitude.Max; i = Math.Round(i + 0.2, 1))
+        {
+            var (tMgMin, tMgMax) = (i, Math.Round(i + 0.1, 1));
+            Debug.WriteLine($"Current mg: {i.ToString(Settings.NumberFormatInfo)}");
+
+            await downloadManager.Download(new DownloadSettings
+            {
+                UrlList = GetDownloadLinks(Settings.Years.Min, Settings.Years.Max, tMgMin, tMgMax),
+                BaseDirectory = Settings.Location,
+                FileEndingName = $"mg{tMgMin.ToString(Settings.NumberFormatInfo)}_{tMgMax.ToString(Settings.NumberFormatInfo)}"
+            });
+        }
+    }
 
     #region Download
-    public override List<string> GetDownloadLinks(int yearMin, int yearMax, int magnitudeMin, int magnitudeMax)
+    public override List<string> GetDownloadLinks(int yearMin, int yearMax, double magnitudeMin, double magnitudeMax)
     {
         var result = new List<string>
         {
-            $"https://earthquake.usgs.gov/fdsnws/event/1/query.csv?starttime={yearMin}-01-01%2000:00:00&endtime={yearMin}-01-01%2000:00:00&minmagnitude={magnitudeMin}&maxmagnitude={magnitudeMax}&eventtype=earthquake&contributor=us&orderby=time-asc"
+            $"https://earthquake.usgs.gov/fdsnws/event/1/query.csv?starttime={yearMin}-01-01%2000:00:00&endtime={yearMin}-01-01%2000:00:00&minmagnitude={magnitudeMin.ToString(Settings.NumberFormatInfo)}&maxmagnitude={magnitudeMax.ToString(Settings.NumberFormatInfo)}&eventtype=earthquake&contributor=us&orderby=time-asc"
         };
 
         for (var i = yearMin; i <= yearMax; i++)
         {
-            result.Add($"https://earthquake.usgs.gov/fdsnws/event/1/query.csv?starttime={i}-01-01%2000:00:01&endtime={i + 1}-01-01%2000:00:00&minmagnitude={magnitudeMin}&maxmagnitude={magnitudeMax}&eventtype=earthquake&contributor=us&orderby=time-asc");
+            result.Add($"https://earthquake.usgs.gov/fdsnws/event/1/query.csv?starttime={i}-01-01%2000:00:01&endtime={i + 1}-01-01%2000:00:00&minmagnitude={magnitudeMin.ToString(Settings.NumberFormatInfo)}&maxmagnitude={magnitudeMax.ToString(Settings.NumberFormatInfo)}&eventtype=earthquake&contributor=us&orderby=time-asc");
         }
 
         return result;
@@ -44,49 +60,14 @@ public class Usgs : FacilityBase<UsgsObjMap, UsgsConverter>
             .ToList();
 
         DeleteResult();
-        Save(data, FilteredFilePath);
-    }
-
-    public void SaveCountByLocationAll() => SaveCountByLocation(Years.Min, Years.Max, LocationCountAllFileName);
-    public void SaveCountByLocationPartial() => SaveCountByLocation(2000, 2024, LocationCountPartialFileName);
-
-    public void SaveCountByLocation(int minYear, int maxYear, string fileName)
-    {
-        var data = GetEqByLocation(minYear, maxYear);
-        Save(data, Path.Combine(Location, fileName));
-    }
-
-    protected void Save(List<EqLocationCount> data, string filePath)
-    {
-        using var writer = new StreamWriter(filePath);
-        using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = Delimiter });
-        csv.WriteRecords(data);
+        Save(data, Settings.FilteredFilePath);
     }
     #endregion
 
 
 
-    #region Read
-    protected override List<string> GetWorkFilePaths()
-    {
-        var baseFiles = base.GetWorkFilePaths();
-        baseFiles.Add(LocationCountAllFilePath);
-        baseFiles.Add(LocationCountPartialFilePath);
-        return baseFiles;
-    }
-
-    public List<EqLocationCount> GetEqByLocation(int minYear, int maxYear)
-    {
-        return GetResult()
-            .Where(i => i.Date.Year >= minYear && i.Date.Year <= maxYear)
-            .GroupBy(i => AdjustLocationName(i.Place))
-            .ToDictionary(i => i.Key, i => i.ToList())
-            .Select(i => new EqLocationCount(i.Key, i.Value.Count))
-            .OrderByDescending(o => o.Count)
-            .ToList();
-    }
-
-    private string AdjustLocationName(string location)
+    #region Update
+    protected override string AdjustLocationName(string location)
     {
         location = location.ToLower();
 
@@ -178,23 +159,6 @@ public class Usgs : FacilityBase<UsgsObjMap, UsgsConverter>
             .Replace("wyoming", "usa");
 
         return location;
-    }
-    #endregion
-
-
-
-    #region Delete
-    public void DeleteLocationCountAll() => File.Delete(LocationCountAllFilePath);
-    public void DeleteLocationCountPartial() => File.Delete(LocationCountPartialFilePath);
-    public void DeleteLocationCount()
-    {
-        DeleteLocationCountAll();
-        DeleteLocationCountPartial();
-    }
-    public override void DeleteWorkFiles()
-    {
-        DeleteLocationCount();
-        base.DeleteWorkFiles();
     }
     #endregion
 }
