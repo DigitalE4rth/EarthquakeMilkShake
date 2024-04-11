@@ -81,7 +81,9 @@ public class IrisWilber : FacilityBase<IrisWilberObjMap, IrisWilberConverter>
 
     public override void FilterAndSave()
     {
-        var data = GetParsed().Distinct().ToList();
+        var data = GetParsed()
+            .Where(i => i.Contributor.Equals("ISC"))
+            .ToList();
 
         DeleteResult();
         Save(data, Settings.FilteredFilePath);
