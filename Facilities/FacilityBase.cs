@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Dynamic;
+using System.Globalization;
 using CsvHelper;
 using CsvHelper.Configuration;
 using EarthquakeMilkShake.Converters;
@@ -110,13 +111,12 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
         Save(count, Settings.CountByMagParsedFilePath);
     }
 
-    public void CountByLocationAndSave() => SaveCountByLocation(Settings.Years.Min, Settings.Years.Max, Settings.LocationCountAllFileName);
-    public void CountByLocationPartialAndSave() => SaveCountByLocation(2000, 2024, Settings.LocationCountPartialFileName);
-
-    public void SaveCountByLocation(int minYear, int maxYear, string fileName)
+    public void CountByLocationFilteredAndSave() => CountByLocationFilteredAndSave(Settings.CountByLocationFilteredFileName, GetFiltered());
+    public void CountByLocationParsedAndSave() => CountByLocationFilteredAndSave(Settings.CountByLocationParsedFileName, GetParsed());
+    protected void CountByLocationFilteredAndSave(string fileName, List<EarthquakeInfo> data)
     {
-        var data = GetEqByLocation(minYear, maxYear);
-        Save(data, Path.Combine(Settings.Location, fileName));
+        var result = GetEqByLocation(data);
+        Save(result, Path.Combine(Settings.Location, fileName));
     }
 
     protected void SaveParsed(List<EqByYearsCount> data) => Save(data, Settings.CountParsedFilePath);
@@ -140,7 +140,7 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
         using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = Settings.Delimiter });
         csv.WriteRecords(data);
     }
-    protected void Save(List<EqLocationCount> data, string filePath)
+    protected void Save(List<object> data, string filePath)
     {
         using var writer = new StreamWriter(filePath);
         using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = Settings.Delimiter });
@@ -164,6 +164,49 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
                    .OrderBy(i => i.Year)
                    .ToList();
     }
+
+    public List<object> GetEqByLocation(List<EarthquakeInfo> data)
+    {
+        var result = new List<object>();
+
+        var groupedPlaces = data
+            .GroupBy(d => AdjustLocationName(d.Place))
+            .ToDictionary(d => d.Key, d => d)
+            .OrderByDescending(pair => pair.Value.Count());
+        
+        foreach (var (place, earthQuakeInfo) in groupedPlaces)
+        {
+            var earthquakesDynamic = new ExpandoObject() as IDictionary<string, object>;
+            earthquakesDynamic.Add("Country", place);
+
+            var populatedYears = new Dictionary<int, int>();
+            for (var i = Settings.Years.Min; i <= Settings.Years.Max; i++)
+            {
+                populatedYears.Add(i, 0);
+            }
+
+            var countByYear = earthQuakeInfo
+                .GroupBy(info => info.Date.Year)
+                .ToDictionary(info => info.Key, info => info.ToList().Count);
+            
+            foreach (var (year, eqCount) in countByYear)
+            {
+                populatedYears[year] = eqCount;
+            }
+
+            foreach (var (year, eqCount) in populatedYears)
+            {
+                earthquakesDynamic.Add(year.ToString(), eqCount);
+            }
+
+            earthquakesDynamic.Add("TotalCount", countByYear.Values.Sum());
+
+            result.Add(earthquakesDynamic);
+        }
+
+        return result;
+    }
+
     public List<EqMagnitudesCount> CountEqByMagnitude(List<EarthquakeInfo> data)
     {
         var resultDict = new Dictionary<int, EqMagnitudesCount>();
@@ -196,17 +239,6 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
         return resultDict.Values.ToList();
     }
 
-    public List<EqLocationCount> GetEqByLocation(int minYear, int maxYear)
-    {
-        return GetFiltered()
-            .Where(i => i.Date.Year >= minYear && i.Date.Year <= maxYear)
-            .GroupBy(i => AdjustLocationName(i.Place))
-            .ToDictionary(i => i.Key, i => i.ToList())
-            .Select(i => new EqLocationCount(i.Key, i.Value.Count))
-            .OrderByDescending(o => o.Count)
-            .ToList();
-    }
-
     protected virtual List<string> GetWorkFilePaths()
     {
         return new List<string>
@@ -218,7 +250,7 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
             Settings.CountResultFilePath, 
             Settings.CountByMagFilteredFilePath,
             Settings.CountByMagParsedFilePath,
-            Settings.LocationCountAllFilePath,
+            Settings.CountByLocationFilteredFilePath,
             Settings.LocationCountPartialFilePath
         };
     }
@@ -290,7 +322,7 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
     public void DeleteCountMerge() => File.Delete(Settings.CountParsedFilePath);
     public void DeleteCountByMagFiltered() => File.Delete(Settings.CountByMagFilteredFilePath);
     public void DeleteCountByMagParsed() => File.Delete(Settings.CountByMagParsedFilePath);
-    public void DeleteLocationCountAll() => File.Delete(Settings.LocationCountAllFilePath);
+    public void DeleteLocationCountAll() => File.Delete(Settings.CountByLocationFilteredFilePath);
     public void DeleteLocationCountPartial() => File.Delete(Settings.LocationCountPartialFilePath);
 
     public virtual void DeleteWorkFiles()

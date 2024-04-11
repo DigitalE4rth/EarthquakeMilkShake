@@ -47,6 +47,6 @@ void CountByMagnitudeParsedAndSave()   => facilities.ForEach(f => f.CountByMagni
 // irisIndonesia.CountByMagnitudeParsedAndSave();
 
 // Additional step: Calculate earthquakes count by location from USGS facility
-// usgs.SaveCountByLocation(1970, 2024, "EqByLocation.csv");
+// usgs.CountByLocationFilteredAndSave();
 
 return 0;

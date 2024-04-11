@@ -32,8 +32,11 @@ public class FacilitySettings
     public string CountByMagParsedFileName { get; set; } = "CountedByMagParsed.csv";
     public string CountByMagParsedFilePath => Path.Combine(Location, CountByMagParsedFileName);
 
-    public string LocationCountAllFileName { get; set; } = "CountByLocationAll.csv";
-    public string LocationCountAllFilePath => Path.Combine(Location, LocationCountAllFileName);
+    public string CountByLocationFilteredFileName { get; set; } = "CountByLocationFiltered.csv";
+    public string CountByLocationFilteredFilePath => Path.Combine(Location, CountByLocationFilteredFileName);
+
+    public string CountByLocationParsedFileName { get; set; } = "CountByLocationParsed.csv";
+    public string CountByLocationParsedFilePath => Path.Combine(Location, CountByLocationFilteredFileName);
 
     public string LocationCountPartialFileName { get; set; } = "CountByLocationPartial.csv";
     public string LocationCountPartialFilePath => Path.Combine(Location, LocationCountPartialFileName);
