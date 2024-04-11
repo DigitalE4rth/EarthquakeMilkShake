@@ -7,7 +7,7 @@ public class FacilitySettings
     public string Location { get; set; } = string.Empty;
     public string Delimiter = ",";
     public string Subfolder = "Data";
-    public (int Min, int Max) Years = (2000, 2024);
+    public (int Min, int Max) Years = (1970, 2024);
     public (double Min, double Max) Magnitude = (1, 10);
     public NumberFormatInfo NumberFormatInfo { get; set; } = new() { NumberDecimalSeparator = "." };
 
