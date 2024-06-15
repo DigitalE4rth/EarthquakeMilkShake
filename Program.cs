@@ -17,10 +17,10 @@ void CountParsedAndSave()              => facilities.ForEach(f => f.CountParsedA
 void CountFilteredAndSave()            => facilities.ForEach(f => f.CountFilteredAndSave());
 void CountByMagnitudeFilteredAndSave() => facilities.ForEach(f => f.CountByMagnitudeFilteredAndSave());
 void CountByMagnitudeParsedAndSave()   => facilities.ForEach(f => f.CountByMagnitudeParsedAndSave());
-void CountByLocationFilteredAndSave() => facilities.ForEach(f => f.CountByLocationFilteredAndSave());
-void CountByLocationParsedAndSave() => facilities.ForEach(f => f.CountByLocationParsedAndSave());
-void CountByDepthFilteredAndSave() => facilities.ForEach(f => f.CountByDepthFilteredAndSave());
-void CountByDepthParsedAndSave() => facilities.ForEach(f => f.CountByDepthParsedAndSave());
+void CountByLocationFilteredAndSave()  => facilities.ForEach(f => f.CountByLocationFilteredAndSave());
+void CountByLocationParsedAndSave()    => facilities.ForEach(f => f.CountByLocationParsedAndSave());
+void CountByDepthFilteredAndSave()     => facilities.ForEach(f => f.CountByDepthFilteredAndSave());
+void CountByDepthParsedAndSave()       => facilities.ForEach(f => f.CountByDepthParsedAndSave());
 
 // Preparation step: optionally customize the magnitude and years parameters in this class:
 // FacilitySettings
