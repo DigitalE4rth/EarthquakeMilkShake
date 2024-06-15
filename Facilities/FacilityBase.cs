@@ -111,11 +111,19 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
         Save(count, Settings.CountByMagParsedFilePath);
     }
 
-    public void CountByLocationFilteredAndSave() => CountByLocationFilteredAndSave(Settings.CountByLocationFilteredFileName, GetFiltered());
-    public void CountByLocationParsedAndSave() => CountByLocationFilteredAndSave(Settings.CountByLocationParsedFileName, GetParsed());
-    protected void CountByLocationFilteredAndSave(string fileName, List<EarthquakeInfo> data)
+    public void CountByLocationFilteredAndSave() => CountByLocationAndSave(Settings.CountByLocationFilteredFileName, GetFiltered());
+    public void CountByLocationParsedAndSave() => CountByLocationAndSave(Settings.CountByLocationParsedFileName, GetParsed());
+    protected void CountByLocationAndSave(string fileName, List<EarthquakeInfo> data)
     {
         var result = GetEqByLocation(data);
+        Save(result, Path.Combine(Settings.Location, fileName));
+    }
+
+    public void CountByDepthFilteredAndSave(string country = "") => CountByDepthAndSave(Settings.CountByDepthFilteredFileName, GetFiltered(), country);
+    public void CountByDepthParsedAndSave(string country = "") => CountByDepthAndSave(Settings.CountByDepthParsedFileName, GetParsed(), country);
+    protected void CountByDepthAndSave(string fileName, List<EarthquakeInfo> data, string country = "")
+    {
+        var result = GetEqByDepth(data, country);
         Save(result, Path.Combine(Settings.Location, fileName));
     }
 
@@ -207,6 +215,69 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
         return result;
     }
 
+    public List<object> GetEqByDepth(List<EarthquakeInfo> data, string country = "")
+    {
+        var result = new List<object>();
+
+        var groupedDepths = new Dictionary<double, List<EarthquakeInfo>>();
+        for (var i = -50; i < 1000; i+=25)
+        {
+            groupedDepths.Add(i, new List<EarthquakeInfo>());
+        }
+
+        if (!string.IsNullOrEmpty(country))
+        {
+            data.ForEach(d =>
+            {
+                AdjustLocationName(d.Place);
+
+                if (d.Place.ToLower().Equals(country.ToLower()))
+                {
+                    groupedDepths[Math.Floor(d.Depth / 25) * 25].Add(d);
+                }
+            });
+        }
+        else
+        {
+            data.ForEach(d =>
+            {
+                groupedDepths[Math.Floor(d.Depth / 25) * 25].Add(d);
+            });
+        }
+
+        foreach (var (depth, earthQuakeInfo) in groupedDepths)
+        {
+            var earthquakesDynamic = new ExpandoObject() as IDictionary<string, object>;
+            earthquakesDynamic.Add("Depth", depth);
+
+            var populatedYears = new Dictionary<int, int>();
+            for (var i = Settings.Years.Min; i <= Settings.Years.Max; i++)
+            {
+                populatedYears.Add(i, 0);
+            }
+
+            var countByDepth = earthQuakeInfo
+                .GroupBy(info => info.Date.Year)
+                .ToDictionary(info => info.Key, info => info.ToList().Count);
+
+            foreach (var (year, eqCount) in countByDepth)
+            {
+                populatedYears[year] = eqCount;
+            }
+
+            foreach (var (year, eqCount) in populatedYears)
+            {
+                earthquakesDynamic.Add(year.ToString(), eqCount);
+            }
+
+            earthquakesDynamic.Add("TotalCount", countByDepth.Values.Sum());
+
+            result.Add(earthquakesDynamic);
+        }
+
+        return result;
+    }
+
     public List<EqMagnitudesCount> CountEqByMagnitude(List<EarthquakeInfo> data)
     {
         var resultDict = new Dictionary<int, EqMagnitudesCount>();
@@ -251,7 +322,9 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
             Settings.CountByMagFilteredFilePath,
             Settings.CountByMagParsedFilePath,
             Settings.CountByLocationFilteredFilePath,
-            Settings.LocationCountPartialFilePath
+            Settings.CountByLocationParsedFilePath,
+            Settings.CountByLocationPartialFilePath,
+            Settings.CountByDepthParsedFilePath
         };
     }
 
@@ -322,8 +395,11 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
     public void DeleteCountMerge() => File.Delete(Settings.CountParsedFilePath);
     public void DeleteCountByMagFiltered() => File.Delete(Settings.CountByMagFilteredFilePath);
     public void DeleteCountByMagParsed() => File.Delete(Settings.CountByMagParsedFilePath);
-    public void DeleteLocationCountAll() => File.Delete(Settings.CountByLocationFilteredFilePath);
-    public void DeleteLocationCountPartial() => File.Delete(Settings.LocationCountPartialFilePath);
+    public void DeleteCountLocationAll() => File.Delete(Settings.CountByLocationFilteredFilePath);
+    public void DeleteCountLocationParsed() => File.Delete(Settings.CountByLocationParsedFilePath);
+    public void DeleteCountLocationPartial() => File.Delete(Settings.CountByLocationPartialFilePath);
+    public void DeleteCountByDepthFiltered() => File.Delete(Settings.CountByDepthFilteredFilePath);
+    public void DeleteCountByDepthParsed() => File.Delete(Settings.CountByDepthParsedFilePath);
 
     public virtual void DeleteWorkFiles()
     {
@@ -334,8 +410,11 @@ public abstract class FacilityBase<T, TC> : IFacility where T : ClassMap, new() 
         DeleteCountMerge();
         DeleteCountByMagFiltered();
         DeleteCountByMagParsed();
-        DeleteLocationCountAll();
-        DeleteLocationCountPartial();
+        DeleteCountLocationAll();
+        DeleteCountLocationParsed();
+        DeleteCountLocationPartial();
+        DeleteCountByDepthFiltered();
+        DeleteCountByDepthParsed();
     }
     #endregion
 }

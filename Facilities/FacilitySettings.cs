@@ -36,8 +36,14 @@ public class FacilitySettings
     public string CountByLocationFilteredFilePath => Path.Combine(Location, CountByLocationFilteredFileName);
 
     public string CountByLocationParsedFileName { get; set; } = "CountByLocationParsed.csv";
-    public string CountByLocationParsedFilePath => Path.Combine(Location, CountByLocationFilteredFileName);
+    public string CountByLocationParsedFilePath => Path.Combine(Location, CountByLocationParsedFileName);
 
-    public string LocationCountPartialFileName { get; set; } = "CountByLocationPartial.csv";
-    public string LocationCountPartialFilePath => Path.Combine(Location, LocationCountPartialFileName);
+    public string CountByDepthFilteredFileName { get; set; } = "CountByDepthFiltered.csv";
+    public string CountByDepthFilteredFilePath => Path.Combine(Location, CountByDepthFilteredFileName);
+                         
+    public string CountByDepthParsedFileName { get; set; } = "CountByDepthParsed.csv";
+    public string CountByDepthParsedFilePath => Path.Combine(Location, CountByDepthParsedFileName);
+
+    public string CountByLocationPartialFileName { get; set; } = "CountByLocationPartial.csv";
+    public string CountByLocationPartialFilePath => Path.Combine(Location, CountByLocationPartialFileName);
 }

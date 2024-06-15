@@ -12,4 +12,8 @@ public interface IFacility
     public void CountFilteredAndSave();
     public void CountByMagnitudeFilteredAndSave();
     public void CountByMagnitudeParsedAndSave();
+    public void CountByLocationFilteredAndSave();
+    public void CountByLocationParsedAndSave();
+    public void CountByDepthFilteredAndSave(string country = "");
+    public void CountByDepthParsedAndSave(string country = "");
 }

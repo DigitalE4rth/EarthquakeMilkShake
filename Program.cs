@@ -17,6 +17,10 @@ void CountParsedAndSave()              => facilities.ForEach(f => f.CountParsedA
 void CountFilteredAndSave()            => facilities.ForEach(f => f.CountFilteredAndSave());
 void CountByMagnitudeFilteredAndSave() => facilities.ForEach(f => f.CountByMagnitudeFilteredAndSave());
 void CountByMagnitudeParsedAndSave()   => facilities.ForEach(f => f.CountByMagnitudeParsedAndSave());
+void CountByLocationFilteredAndSave() => facilities.ForEach(f => f.CountByLocationFilteredAndSave());
+void CountByLocationParsedAndSave() => facilities.ForEach(f => f.CountByLocationParsedAndSave());
+void CountByDepthFilteredAndSave() => facilities.ForEach(f => f.CountByDepthFilteredAndSave());
+void CountByDepthParsedAndSave() => facilities.ForEach(f => f.CountByDepthParsedAndSave());
 
 // Preparation step: optionally customize the magnitude and years parameters in this class:
 // FacilitySettings
@@ -40,13 +44,18 @@ void CountByMagnitudeParsedAndSave()   => facilities.ForEach(f => f.CountByMagni
 // CountByMagnitudeFilteredAndSave();
 // CountByMagnitudeParsedAndSave();
 
+// Step 3.4: Count earthquakes by location
+// CountByLocationFilteredAndSave();
+// CountByLocationParsedAndSave();
+
+// Step 3.5: Count earthquakes by depth
+// CountByDepthFilteredAndSave();
+// CountByDepthParsedAndSave();
+
 // Additional step: Calculate Indonesia data
 // await irisIndonesia.CalculateIndonesiaData();
 // irisIndonesia.CountFilteredAndSave(new DateTime(2015, 06, 1), new DateTime(2016, 06, 30));
 // irisIndonesia.CountByMagnitudeFilteredAndSave();
 // irisIndonesia.CountByMagnitudeParsedAndSave();
-
-// Additional step: Calculate earthquakes count by location from USGS facility
-// usgs.CountByLocationFilteredAndSave();
 
 return 0;
